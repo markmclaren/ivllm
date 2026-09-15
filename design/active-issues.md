@@ -311,6 +311,13 @@ This document tracks known, pre-existing bugs in the `isambard-vllm` repository.
 
   **Status**: not working end-to-end. Pausing here — see "Left to investigate" above for the concrete next steps when this is picked back up.
 
+- **`src/engine/lib/utils.sh:24` uses `[[ -v IVLLM_UTILS ]]` which fails on Bash < 4.2 (such as macOS default `/bin/bash` 3.2)**:
+  Running the unit test suite via `bun test` invokes `tests/bash/run.sh unit` using `/bin/bash`. On macOS, `/bin/bash` is version 3.2.57, which does not support the `-v` unary operator in conditional expressions (`[[ -v VAR ]]`). This causes a syntax error:
+  `utils.sh: line 24: conditional binary operator expected`
+  `utils.sh: line 24: syntax error near 'IVLLM_UTILS'`
+  Consequently, `tests/unit/bash-integration.test.ts` fails when run in local macOS development environments where default `/bin/bash` is used instead of a newer Bash version (e.g. from Homebrew or on Linux/Isambard where Bash 5+ is standard).
+  **Suggested fix**: Replace `[[ -v IVLLM_UTILS ]]` with standard bash-compatible parameter expansion like `[[ -n "${IVLLM_UTILS:-}" ]]` or `[ -n "${IVLLM_UTILS+x}" ]`, or invoke bash via `/usr/bin/env bash` ensuring a modern Bash is in PATH.
+
 ## Resolved
 
 - **`bun:test` cannot reliably exercise umask-dependent child-process behaviour** (testing-infrastructure finding, not a product bug — kept here for the record since it cost real investigation time and could recur). While building the `copyDirectory` permission tests above, a test asserting group-write via the `--rsync-path 'umask 002 && rsync'` mechanism *alone* (before the `chmod -R g+rwX` fix existed) consistently failed under `bun test` but passed when the identical code (same `SshRemoteOps` class, same fake-`ssh`-on-PATH fixture used in `tests/unit/SshRemoteOps.test.ts`, same `process.umask(0o022)` simulation) was run via plain `bun run` instead — and the `bun run` result matched real Isambard behaviour. Conclusion: Bun's test runner (`1.3.14`) does something that breaks umask inheritance from a test's `process.umask()` call down to a spawned child process; the exact internal mechanism wasn't identified further. This is no longer blocking anything — the shipped fix (explicit `chmod -R g+rwX`) is deterministic and untroubled by this, so all three tests in `tests/unit/SshRemoteOps.test.ts` pass reliably under `bun:test`. Documented here in case a *future* test ever needs to depend on umask propagating to a spawned child under `bun test` — that will hit the same wall.
