@@ -1,0 +1,26 @@
+metadata:
+    target: Isambard-AI GH200
+    created-by: Antigravity
+    version: 0.1.0
+    lifecycle: operational
+min-vllm-version: "0.23.0"
+idle-timeout: 60
+
+# vLLM config for Qwen/Qwen2.5-Coder-32B-Instruct on Isambard AI
+#
+# Hardware: 4 × GH200 (Isambard AI Phase 1/2) — ~96 GiB usable HBM3e per GPU
+# Model: 32.5B dense transformer parameters, ~65 GB total at bfloat16
+# Parallelism: tp=4 across all 4 GPUs on a single node (~16.25 GB weights per GPU)
+# KV Cache: Leaves >70 GB HBM per GPU for KV cache, easily supporting full 32K context
+# Tool Use: Custom Qwen 2.5 Coder plugin for OpenAI-compatible JSON function calling (Cline/OpenCode)
+
+model: Qwen/Qwen2.5-Coder-32B-Instruct
+tensor-parallel-size: 4
+max-model-len: 65536
+gpu-memory-utilization: 0.90
+dtype: bfloat16
+enable-auto-tool-choice: true
+tool-parser-plugin: plugins/qwen2_5_coder_tool_parser.py
+tool-call-parser: qwen_2_5
+chat-template: plugins/tool_chat_template_qwen2_5_coder.jinja
+enable-prefix-caching: true

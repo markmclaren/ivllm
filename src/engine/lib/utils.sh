@@ -2275,16 +2275,14 @@ run_vllm_warmup() {
     fi
 
     # 3. Warm up chunked-prefill beyond max-num-batched-tokens
-    echo "[warmup] warming up long-context 32768 tokens and generation loops..."
+    echo "[warmup] warming up long-context 16384 tokens and generation loops..."
     local long_content
-    long_content=$(python3 -c "print(' '.join(str(i) for i in range(32768)))")
-    # Token count from numbers is likely larger that number of repeats so we
-    # truncate to 32K*4 characters to get approximately to 32K tokens.
-    # imperfect solution. As it happens we also don't know what the
-    # max-num-batched-tokens limit will be that we are trying to test.
-    if ! run_vllm_request "$job" "$debug_level" "${long_content:0:131072}" 1 600 0 128; then
+    long_content=$(python3 -c "print(' '.join(str(i) for i in range(16384)))")
+    # Token count from numbers is roughly 1 token per char/space in byte-level BPE,
+    # so slice to 16384 to fit comfortably within standard 32K/64K/128K context windows.
+    if ! run_vllm_request "$job" "$debug_level" "${long_content:0:16384}" 1 600 0 128; then
         echo "[warmup] WARNING: warmup long-context MoE failed"
-        echo "[warmup] max model length must be greater than 32768"
+        echo "[warmup] max model length must be greater than 16384"
         return 1
     fi
 
